@@ -1,0 +1,86 @@
+<!--
+  ~    Copyright 2018 OICR
+  ~
+  ~    Licensed under the Apache License, Version 2.0 (the "License");
+  ~    you may not use this file except in compliance with the License.
+  ~    You may obtain a copy of the License at
+  ~
+  ~        http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~    Unless required by applicable law or agreed to in writing, software
+  ~    distributed under the License is distributed on an "AS IS" BASIS,
+  ~    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~    See the License for the specific language governing permissions and
+  ~    limitations under the License.
+  -->
+<div>
+  <div *ngIf="!dataSource">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  </div>
+  <mat-table
+    [hidden]="!dataSource"
+    class="mat-elevation-z4"
+    [dataSource]="dataSource"
+    matSort
+    matSortActive="starredUsers"
+    matSortDirection="desc"
+    matSortDisableClear
+  >
+    <ng-container matColumnDef="name">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Name</mat-header-cell>
+      <mat-cell *matCellDef="let tool">
+        <span *ngIf="tool.private_access">
+          <app-private-icon></app-private-icon>
+        </span>
+        <a [matTooltip]="tool?.tool_path" [routerLink]="'/containers/' + tool.tool_path">{{
+          tool?.namespace + '/' + tool?.name + (tool?.toolname ? '/' + tool?.toolname : '')
+        }}</a>
+      </mat-cell>
+    </ng-container>
+    <ng-container matColumnDef="verified">
+      <mat-header-cell fxShow fxHide.lt-md *matHeaderCellDef>Verified</mat-header-cell>
+      <mat-cell fxShow fxHide.lt-md *matCellDef="let tool">
+        <a *ngIf="getVerified(tool)" href="{{ verifiedLink }}">
+          <mat-icon matTooltip="Verified">check</mat-icon>
+        </a>
+      </mat-cell>
+    </ng-container>
+    <ng-container matColumnDef="author">
+      <mat-header-cell fxShow fxHide.lt-sm *matHeaderCellDef mat-sort-header>Author</mat-header-cell>
+      <mat-cell fxShow fxHide.lt-sm class="duration-cell" *matCellDef="let tool">{{ tool?.author || 'n/a' }}</mat-cell>
+    </ng-container>
+    <ng-container matColumnDef="descriptorType">
+      <mat-header-cell fxShow fxHide.lt-sm *matHeaderCellDef mat-sort-header>Format</mat-header-cell>
+      <mat-cell fxShow fxHide.lt-sm *matCellDef="let tool">{{
+        tool?.descriptorType ? (tool?.descriptorType.toString() | uppercase) : ''
+      }}</mat-cell>
+    </ng-container>
+    <ng-container matColumnDef="projectLinks">
+      <mat-header-cell fxShow fxHide.lt-md *matHeaderCellDef>Project Links</mat-header-cell>
+      <mat-cell fxShow fxHide.lt-md *matCellDef="let tool">
+        <a [href]="tool?.providerUrl" *ngIf="tool?.providerUrl">
+          <fa-icon class="fa-lg" [icon]="tool.providerIcon" [matTooltip]="tool?.provider"></fa-icon>
+        </a>
+        &nbsp; &nbsp;
+        <a [href]="tool?.imgProviderUrl" *ngIf="tool?.imgProviderUrl">
+          <fa-icon class="fa-lg" [icon]="tool.imgProviderIcon" [matTooltip]="tool?.imgProvider"></fa-icon>
+        </a>
+      </mat-cell>
+    </ng-container>
+    <ng-container matColumnDef="starredUsers">
+      <mat-header-cell *matHeaderCellDef mat-sort-header>Stars</mat-header-cell>
+      <mat-cell class="description-cell" *matCellDef="let tool"
+        >{{ !tool?.starredUsers || tool?.starredUsers.length === 0 ? '' : tool?.starredUsers.length }}
+        <mat-icon class="star" *ngIf="tool?.starredUsers?.length > 0">star_rate</mat-icon>
+      </mat-cell>
+    </ng-container>
+    <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+    <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+  </mat-table>
+  <mat-paginator
+    data-cy="search-tool-table-paginator"
+    [showFirstLastButtons]="true"
+    [pageSizeOptions]="[10, 20, 50, 100]"
+    (page)="updatePageSizeAndIndex($event)"
+  ></mat-paginator>
+</div>

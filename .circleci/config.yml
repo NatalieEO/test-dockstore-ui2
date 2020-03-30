@@ -1,0 +1,264 @@
+version: 2.1
+orbs:
+  aws-s3: circleci/aws-s3@1.0.0
+executors:
+  integration_test_exec: # declares a reusable executor
+    docker:
+      - image: circleci/buildpack-deps:18.04-browsers
+        environment:
+          JAVA_TOOL_OPTIONS: -Xmx2g # Java can read cgroup. Sadly the cgroup in CircleCI is wrong. Have to manually set. Using 1/2 memory as heap.
+      - image: circleci/postgres:11.6-alpine-ram
+        environment:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+jobs:
+  lint_unit_test_coverage:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/buildpack-deps:18.04-browsers
+    steps:
+      - checkout
+      - run:
+          name: Checkout merge commit (PRs only)
+          command: |
+            if [[ -n "${CIRCLE_PULL_REQUEST}" ]]
+            then
+              git fetch origin +refs/pull/${CIRCLE_PULL_REQUEST##*/}/merge:
+              git checkout -qf FETCH_HEAD
+            fi
+      - install_container_dependencies
+      - restore_cache:
+          key: dep-cache-{{ checksum "./package-lock.json" }}
+      - run:
+          name: Install dependencies
+          #Only run 'npm ci' if node_modules was not restored from cache
+          command: |
+              if [ ! -d "./node_modules" ]
+              then
+                bash -i -c 'npm ci'
+              fi
+      - save_cache:
+          key: dep-cache-{{ checksum "./package-lock.json" }}
+          paths:
+            - ./node_modules
+      - save_cache:
+          key: cypress-cache-{{ checksum "./package-lock.json" }}
+          paths:
+            - ~/.cache
+      - run:
+          name: Check dependencies
+          command: bash -i -c 'npm ls'
+      - run:
+          name: Lint
+          command: bash -i -c 'npm run lint'
+      - run:
+          name: Build
+          command: bash -i -c 'npm run build.prod'
+      - run:
+          name: Install codecov
+          command: bash -i -c 'npm i --no-save codecov'
+      - run:
+          name: Unit Test
+          command: bash -i -c 'npx ng test --progress=false --watch=false --code-coverage --browsers ChromeHeadless'
+      - run:
+          name: Codecov
+          command: bash -i -c 'npx codecov'
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  integration_test_1:
+    executor: integration_test_exec
+    working_directory: ~/repo
+    steps:
+      - setup_integration_test
+      - restore_cache:
+          key: cypress-cache-{{ checksum "./package-lock.json" }}
+      - run:
+          name: Test
+          command: bash -i -c 'npx cypress run --record --config numTestsKeptInMemory=1 --reporter junit --spec cypress/integration/group1/**/*'
+          environment:
+            MOCHA_FILE: integration-tests/test-results/junit/test-results-[hash].xml
+          when: always
+      - upload_artifacts
+  integration_test_2:
+    executor: integration_test_exec
+    working_directory: ~/repo
+    steps:
+      - setup_integration_test
+      - restore_cache:
+          key: cypress-cache-{{ checksum "./package-lock.json" }}
+      - run:
+          name: Test
+          command: bash -i -c 'npx cypress run --record --config numTestsKeptInMemory=1 --reporter junit --spec cypress/integration/group2/**/*'
+          environment:
+            MOCHA_FILE: integration-tests/test-results/junit/test-results-[hash].xml
+          when: always
+      - upload_artifacts
+  integration_test_3:
+    executor: integration_test_exec
+    working_directory: ~/repo
+    steps:
+      - setup_integration_test
+      - restore_cache:
+          key: cypress-cache-{{ checksum "./package-lock.json" }}
+      - run:
+          name: Test
+          command: bash -i -c 'npx cypress run --record --config numTestsKeptInMemory=1 --reporter junit --spec cypress/integration/immutableDatabaseTests/**/*'
+          environment:
+            MOCHA_FILE: integration-tests/test-results/junit/test-results-[hash].xml
+          when: always
+      - upload_artifacts
+  upload_to_s3:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:2.7
+    parameters:
+      aws_bucket:
+        type: string
+        default: "${AWS_BUCKET}"
+    steps:
+      - when:
+          condition: <<parameters.aws_bucket>>
+          steps:
+            - get_workspace
+            - install_container_dependencies
+            # Build again for the upload to s3
+            # TODO: https://gui.dockstore.org/${CIRCLE_TAG:-$CIRCLE_BRANCH}-$(echo $CIRCLE_SHA1 | cut -c -7) can probably be made into a bash/circle-ci variable.
+            - run:
+                name: Swap for CDN paths
+                command: bash -i -c "find src \( -iname '*.html' -o -iname '*.ts' -o -iname '*.json' \) -exec sed -i 's~\(\.\./\)\+assets/~https://gui\.dockstore\.org/${CIRCLE_TAG:-$CIRCLE_BRANCH}-$(echo $CIRCLE_SHA1 | cut -c -7)/assets/~g' {} +"
+            - run:
+                name: Build
+                command: bash -i -c 'npm run build.prod -- --deploy-url https://gui.dockstore.org/${CIRCLE_TAG:-$CIRCLE_BRANCH}-$(echo $CIRCLE_SHA1 | cut -c -7)/'
+            # Copy to a versioned folder
+            - aws-s3/copy:
+                from: dist
+                to: 's3://${AWS_BUCKET}/${CIRCLE_TAG:-$CIRCLE_BRANCH}-$(echo $CIRCLE_SHA1 | cut -c -7)'
+                arguments: |
+                  --recursive \
+                  --exclude index.html
+            - aws-s3/copy:
+                from: dist/index.html
+                to: 's3://${AWS_BUCKET}/${CIRCLE_TAG-$CIRCLE_BRANCH}-$(echo $CIRCLE_SHA1 | cut -c -7)/index.html'
+                arguments: |
+                  --cache-control max-age=0
+  check_build_develop:
+    working_directory: ~/repo
+    docker:
+      - image: circleci/python:2.7
+    steps:
+      - get_workspace
+      - install_container_dependencies
+        # Override the webservice version in package.json to instead build against develop webservice
+      - run:
+          name: set webservice to develop
+          command: bash -i -c 'npm config set dockstore-ui2:webservice_version develop'
+      - run:
+          name: Build
+          command: bash -i -c 'npm run build'
+
+workflows:
+  version: 2
+  everything:
+    jobs:
+#      # Add the tags filter to all jobs so they will run before upload_to_s3
+      - lint_unit_test_coverage:
+          filters:
+            tags:
+              only: /.*/
+      - integration_test_1:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - lint_unit_test_coverage
+      - integration_test_2:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - lint_unit_test_coverage
+      - integration_test_3:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - lint_unit_test_coverage
+      # Upload builds for tags and branches to s3.
+      - upload_to_s3:
+          requires:
+            - integration_test_1
+            - integration_test_2
+            - integration_test_3
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              only: /.*/
+      - check_build_develop:
+          requires:
+            - upload_to_s3
+          filters:
+            branches:
+              only: /^develop/
+commands:
+  install_container_dependencies:
+    steps:
+      - run:
+          name: Install java
+          command: |
+            sudo apt update -y
+            sudo apt install openjdk-11-jre -yq
+      - run:
+          name: Install npm
+          command: |
+            wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
+            bash -i -c 'nvm install'
+  get_workspace:
+    steps:
+      - attach_workspace:
+          at: .
+  upload_artifacts:
+    steps:
+      - store_test_results:
+          path: integration-tests/test-results
+      - store_artifacts:
+          path: integration-tests/test-results
+      - store_artifacts:
+          path: cypress/videos
+      - store_artifacts:
+          path: cypress/screenshots
+  setup_integration_test:
+    steps:
+      - get_workspace
+      - install_container_dependencies
+      - run:
+          name: Install postgresql client
+          command: sudo apt install -y postgresql-client || true
+      - run:
+          name: Install cypress dependencies
+          command: sudo apt install libgtk2.0-0 -yq
+      - run:
+          name: Prepare webservice
+          command: bash -i -c 'npm run webservice'
+      - run:
+          name: Install nginx
+          command: sudo apt install -y nginx || true
+      - run:
+          name: Prepapre nginx config
+          command: sed "s%REPLACEME%`pwd`%" .circleci/nginx.conf.tmpl > .circleci/nginx.conf
+      - run:
+          name: Run nginx
+          command: sudo nginx -c `pwd`/.circleci/nginx.conf
+          background: true
+      - run:
+          name: Run webservice
+          command: java -jar dockstore-webservice.jar server travisci/web.yml 1>/dev/null
+          background: true
+      - run: mkdir -p integration-tests/test-results/junit
+      - run:
+          name: Wait for services
+          command: bash scripts/wait-for.sh

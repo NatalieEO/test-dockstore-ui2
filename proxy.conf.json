@@ -1,0 +1,14 @@
+{
+  "/api": {
+    "target": "http://localhost:8080",
+    "pathRewrite": {
+      "^/api" : ""
+    }
+  },
+  "/swagger.json": {
+    "target": "http://localhost:8080"
+  },
+  "/openapi.yaml": {
+    "target": "http://localhost:8080"
+  }
+}

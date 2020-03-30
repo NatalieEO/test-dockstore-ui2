@@ -1,0 +1,62 @@
+<h4 mat-dialog-title>Register Checker Workflow</h4>
+<div mat-dialog-content>
+  <app-alert></app-alert>
+  <form #registerCheckerWorkflowForm="ngForm" name="registerCheckerWorkflowForm" (submit)="registerCheckerWorkflow()" novalidate>
+    <mat-form-field class="w-100">
+      <mat-label>Default Descriptor Path</mat-label>
+      <input
+        matInput
+        type="text"
+        id="checkerWorkflowPath"
+        name="workflow_path"
+        [(ngModel)]="workflowPath"
+        minlength="3"
+        maxlength="256"
+        [pattern]="descriptorPattern"
+        required
+        matTooltip="Default relative path to the descriptor in the Git repository."
+        [placeholder]="descriptorPathPlaceholder"
+      />
+      <mat-error *ngIf="formErrors.workflow_path"> {{ formErrors.workflow_path }} </mat-error>
+    </mat-form-field>
+    <mat-form-field class="w-100">
+      <mat-label>Default Test Parameter File Path:</mat-label>
+      <input
+        matInput
+        type="text"
+        id="checkerWorkflowTestParameterFilePath"
+        name="testParameterFilePath"
+        [(ngModel)]="testParameterFilePath"
+        minlength="3"
+        maxlength="256"
+        [pattern]="validationDescriptorPatterns.testParameterFilePath"
+        required
+        matTooltip="Default relative path to the test parameter file in the Git repository."
+        placeholder="e.g. /test.json"
+      />
+      <mat-error *ngIf="formErrors.testParameterFilePath"> {{ formErrors.testParameterFilePath }} </mat-error>
+    </mat-form-field>
+    <mat-form-field *ngIf="!isWorkflow" class="w-100">
+      <mat-label>Descriptor Type</mat-label>
+      <mat-select [(ngModel)]="descriptorType" (ngModelChange)="onDescriptorTypeChange($event)" name="descriptorType">
+        <mat-option *ngFor="let descriptorLanguage of descriptorLanguages" value="{{ descriptorLanguage }}">{{
+          descriptorLanguage
+        }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <div class="modal-footer">
+      <button type="button" mat-button color="secondary" data-dismiss="modal" mat-dialog-close>
+        Close
+      </button>
+      <button
+        id="submitButton"
+        type="submit"
+        mat-flat-button
+        color="primary"
+        [disabled]="!registerCheckerWorkflowForm.form.valid || (isRefreshing$ | async)"
+      >
+        {{ (mode$ | async) === 'add' ? 'Add Checker Workflow' : 'Save Checker Workflow' }}
+      </button>
+    </div>
+  </form>
+</div>

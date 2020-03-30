@@ -1,0 +1,37 @@
+<div id="container-header">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <h3 class="available-containers">
+          Funding
+        </h3>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="container">
+  <div class="row-fluid mt-3">
+    <p class="lead">
+      Support for Dockstore is provided by grants from Genome Canada, the National Institutes of Health, and the Province of Ontario.
+    </p>
+    <div *ngFor="let funder of funders" class="col-xs-12 col-md-6 col-lg-6">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">{{ funder.title }}</h3>
+        </div>
+        <div class="panel-body">
+          <div class="col-sm-12" style="min-height:150px !important;">
+            <a [href]="funder.website">
+              <img [src]="funder.imageSource" class="center-block img-responsive funding-img" [alt]="funder.altImageText" />
+            </a>
+          </div>
+          <div class="col-sm-12" style="min-height:210px !important;">
+            <p>
+              {{ funder.content }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

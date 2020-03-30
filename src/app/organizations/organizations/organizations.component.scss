@@ -1,0 +1,17 @@
+@import 'bootstrap4.scss';
+
+.mat-icon {
+  @extend .pr-5;
+}
+
+.mat-card-title {
+  white-space: nowrap;
+}
+
+.orgStar {
+  line-height: 1.1em;
+}
+
+::ng-deep .mat-card-header-text {
+  width: 100%;
+}

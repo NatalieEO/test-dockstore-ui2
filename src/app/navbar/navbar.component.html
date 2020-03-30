@@ -1,0 +1,102 @@
+<!--
+  ~    Copyright 2018 OICR
+  ~
+  ~    Licensed under the Apache License, Version 2.0 (the "License");
+  ~    you may not use this file except in compliance with the License.
+  ~    You may obtain a copy of the License at
+  ~
+  ~        http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~    Unless required by applicable law or agreed to in writing, software
+  ~    distributed under the License is distributed on an "AS IS" BASIS,
+  ~    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~    See the License for the specific language governing permissions and
+  ~    limitations under the License.
+  -->
+<mat-toolbar color="primary">
+  <mat-toolbar-row class="toolbar-holder hidden-xs">
+    <div [className]="isExtended ? 'container w-100 navbar-fluid' : 'container navbar-fluid'">
+      <span class="flex-toolbar">
+        <a id="home-nav-button" (click)="resetPageNumber()" routerLink="" data-cy="home-nav-button">
+          <img src="../assets/images/dockstore/logo.png" alt="dockstore logo" />
+        </a>
+        <a mat-button class="icon" [routerLink]="['/search']">
+          <img class="site-icons-small hidden-sm" src="../assets/images/dockstore/search-button.png" alt="search button" /> Search
+        </a>
+        <a mat-button class="icon" (click)="resetPageNumber()" routerLink="/organizations">
+          <mat-icon class="hidden-sm">people</mat-icon> Organizations
+        </a>
+        <a mat-button class="icon" href="{{ Dockstore.DOCUMENTATION_URL }}" target="_blank" rel="noopener noreferrer">
+          <img class="site-icons-small hidden-sm" src="../assets/images/dockstore/dockstore-documentation.png" alt="stacked pages" /> Docs
+        </a>
+        <span class="spacer"></span>
+        <a *ngIf="!isLoggedIn" mat-raised-button color="accent" routerLink="/login">Login</a>
+        <template [ngTemplateOutlet]="loginButton"></template>
+        <mat-menu #menuLarge="matMenu">
+          <a mat-menu-item data-cy="my-tools-nav-button" routerLink="/my-tools">
+            <img
+              class="site-icons-small hidden-sm"
+              src="../assets/images/dockstore/dockstore-tools-purple.png"
+              alt="square and circle logo"
+            />&nbsp;My&nbsp;Tools
+          </a>
+          <a mat-menu-item data-cy="my-workflows-nav-button" routerLink="/my-workflows">
+            <img
+              class="site-icons-small hidden-sm"
+              src="../assets/images/dockstore/dockstore-workflows-purple.png"
+              alt="square and circle logo"
+            />&nbsp;My&nbsp;Workflows
+          </a>
+          <a mat-menu-item data-cy="my-services-nav-button" routerLink="/my-services">
+            <img
+              class="site-icons-small hidden-sm"
+              src="../assets/images/dockstore/dockstore-workflows-purple.png"
+              alt="square and circle logo"
+            />&nbsp;My&nbsp;Services
+            <div class="beta-label">preview</div>
+          </a>
+          <mat-divider></mat-divider>
+          <a mat-menu-item id="dropdown-accounts" routerLink="/accounts">
+            <mat-icon color="accent" *ngIf="user?.isAdmin">lock</mat-icon>
+            <mat-icon color="accent" *ngIf="user?.curator && !user?.isAdmin">edit</mat-icon>
+            <mat-icon color="accent" *ngIf="!user?.isAdmin && !user?.curator">account_circle</mat-icon>Account
+          </a>
+          <a mat-menu-item id="dropdown-starred" routerLink="/starred"> <mat-icon color="accent">stars</mat-icon>Starred</a>
+          <a mat-menu-item id="dropdown-onboarding" routerLink="/onboarding" *ngIf="extendedUser?.canChangeUsername">
+            <mat-icon color="accent" matBadge="!" matBadgePosition="before" matBadgeColor="warn">timeline</mat-icon>Setup
+          </a>
+          <mat-divider></mat-divider>
+          <a mat-menu-item id="dropdown-logout" (click)="logout()"> <mat-icon color="accent">input</mat-icon>Log out </a>
+        </mat-menu>
+      </span>
+    </div>
+  </mat-toolbar-row>
+  <mat-toolbar-row class="visible-xs toolbar-holder toolbar-holder-sm clearfix">
+    <div class="container-fluid navbar-holder">
+      <div fxLayout="row" fxLayoutAlign="space-between center">
+        <a fxFlex id="home-nav-button-mobile" (click)="resetPageNumber()" routerLink="">
+          <img src="../assets/images/dockstore/logo.png" alt="dockstore logo" />
+        </a>
+        <a *ngIf="!isLoggedIn" mat-raised-button color="accent" routerLink="/login">Login</a>
+        <template [ngTemplateOutlet]="loginButton"></template>
+      </div>
+    </div>
+  </mat-toolbar-row>
+  <mat-toolbar-row class="visible-xs toolbar-holder text-center toolbar-holder-sm">
+    <div class="container-fluid navbar-holder">
+      <a mat-button class="icon icon-sm" routerLink="/search">Search</a>
+      <a mat-button class="icon icon-sm" routerLink="/organizations">Organizations</a>
+      <a mat-button class="icon icon-sm" href="{{ Dockstore.DOCUMENTATION_URL }}" target="_blank" rel="noopener noreferrer">Docs</a>
+    </div>
+  </mat-toolbar-row>
+</mat-toolbar>
+<!-- This is the login button used in both navbar sizes -->
+<ng-template #loginButton>
+  <button data-cy="dropdown-main" *ngIf="isLoggedIn" mat-raised-button color="accent" id="dropdown-main" [matMenuTriggerFor]="menuLarge">
+    <mat-icon class="hidden-sm hidden-md hidden-lg" *ngIf="user?.isAdmin">lock</mat-icon>
+    <mat-icon class="hidden-sm hidden-md hidden-lg" *ngIf="user?.curator && !user?.isAdmin">edit</mat-icon>
+    <mat-icon class="hidden-sm hidden-md hidden-lg" *ngIf="!user?.isAdmin && !user?.curator">account_circle</mat-icon>
+    <span class="hidden-xs">{{ user?.username }} </span>
+    <mat-icon>keyboard_arrow_down</mat-icon>
+  </button>
+</ng-template>
